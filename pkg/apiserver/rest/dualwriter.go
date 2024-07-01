@@ -98,7 +98,7 @@ const (
 
 // TODO: make this function private as there should only be one public way of setting the dual writing mode
 // NewDualWriter returns a new DualWriter.
-func NewDualWriter(mode DualWriterMode, legacy LegacyStorage, storage Storage, reg prometheus.Registerer, group string, resource string, namespacer request.NamespaceMapper) DualWriter {
+func NewDualWriter(mode DualWriterMode, legacy LegacyStorage, storage Storage, reg prometheus.Registerer, group string, resource string, namespacer func(orgId int64) string) DualWriter {
 	metrics := &dualWriterMetrics{}
 	metrics.init(reg)
 	switch mode {
@@ -154,7 +154,7 @@ func SetDualWritingMode(
 	reg prometheus.Registerer,
 	group string,
 	resource string,
-	namespacer request.NamespaceMapper,
+	namespacer func(orgId int64) string,
 ) (DualWriter, error) {
 	toMode := map[string]DualWriterMode{
 		// It is not possible to initialize a mode 0 dual writer. Mode 0 represents
