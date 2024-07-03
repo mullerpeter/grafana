@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
-	serverlocksvc "github.com/grafana/grafana/pkg/infra/serverlock"
 	"github.com/prometheus/client_golang/prometheus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -100,7 +100,7 @@ const (
 
 // TODO: make this function private as there should only be one public way of setting the dual writing mode
 // NewDualWriter returns a new DualWriter.
-func NewDualWriter(mode DualWriterMode, legacy LegacyStorage, storage Storage, reg prometheus.Registerer, requestInfo *request.RequestInfo, serverLockService *serverlocksvc.ServerLockService) DualWriter {
+func NewDualWriter(mode DualWriterMode, legacy LegacyStorage, storage Storage, reg prometheus.Registerer, requestInfo *request.RequestInfo, serverLockService ServerLockService) DualWriter {
 	metrics := &dualWriterMetrics{}
 	metrics.init(reg)
 	switch mode {
@@ -146,6 +146,10 @@ type NamespacedKVStore interface {
 	Set(ctx context.Context, key, value string) error
 }
 
+type ServerLockService interface {
+	LockExecuteAndRelease(ctx context.Context, actionName string, maxInterval time.Duration, fn func(ctx context.Context)) error
+}
+
 func SetDualWritingMode(
 	ctx context.Context,
 	kvs NamespacedKVStore,
@@ -155,7 +159,7 @@ func SetDualWritingMode(
 	desiredMode DualWriterMode,
 	reg prometheus.Registerer,
 	requestInfo *request.RequestInfo,
-	serverLockService *serverlocksvc.ServerLockService,
+	serverLockService ServerLockService,
 ) (DualWriter, error) {
 	toMode := map[string]DualWriterMode{
 		// It is not possible to initialize a mode 0 dual writer. Mode 0 represents
