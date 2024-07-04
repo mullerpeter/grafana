@@ -7,7 +7,7 @@ import { GrafanaTheme2 } from '@grafana/data';
 import { reportInteraction } from '@grafana/runtime';
 import { Modal, useStyles2, useTheme2 } from '@grafana/ui';
 
-import { SQLQuery, QueryEditorProps } from '../../types';
+import {QueryEditorProps, SQLQuery} from '../../types';
 
 import { QueryEditorRaw } from './QueryEditorRaw';
 import { QueryToolbox } from './QueryToolbox';

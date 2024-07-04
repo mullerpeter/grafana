@@ -37,6 +37,22 @@ import migrateAnnotation from '../utils/migration';
 
 import { isSqlDatasourceDatabaseSelectionFeatureFlagEnabled } from './../components/QueryEditorFeatureFlag.utils';
 
+type Schema = {
+    name: string;
+};
+type Catalog = {
+  name: string;
+  schemas: {
+    [key: string]: Schema;
+  }
+};
+
+type CatalogsSchemas = {
+  catalogs: {
+    [key: string]: Catalog;
+  }
+}
+
 export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLOptions> {
   id: number;
   responseParser: ResponseParser;
@@ -44,6 +60,11 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
   interval: string;
   db: DB;
   preconfiguredDatabase: string;
+  defaultCatalog: string | undefined;
+  defaultSchema: string | undefined;
+  fetchedCatalogsSchemas: CatalogsSchemas;
+  unityCatalogEnabled: boolean;
+  initialized: boolean;
 
   constructor(
     instanceSettings: DataSourceInstanceSettings<SQLOptions>,
@@ -56,6 +77,11 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
     const settingsData = instanceSettings.jsonData || {};
     this.interval = settingsData.timeInterval || '1m';
     this.db = this.getDB();
+    this.defaultSchema = undefined;
+    this.defaultCatalog = undefined;
+    this.fetchedCatalogsSchemas = { catalogs: {} };
+    this.unityCatalogEnabled = false;
+    this.initialized = false;
     /*
       The `settingsData.database` will be defined if a default database has been defined in either
       1) the ConfigurationEditor.tsx, OR 2) the provisioning config file, either under `jsondata.database`, or simply `database`.
@@ -117,7 +143,13 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
   }
 
   applyTemplateVariables(target: SQLQuery, scopedVars: ScopedVars) {
+    // Migrate old format to new format, to support legacy queries.
+    if (target.rawSql === undefined && target.rawSqlQuery !== undefined) {
+        target.rawSql = target.rawSqlQuery;
+        target.rawSqlQuery = undefined;
+    }
     return {
+      ...target,
       refId: target.refId,
       datasource: this.getRef(),
       rawSql: this.templateSrv.replace(target.rawSql, scopedVars, this.interpolateVariable),
@@ -170,7 +202,7 @@ export abstract class SqlDatasource extends DataSourceWithBackend<SQLQuery, SQLO
       if (!!this.preconfiguredDatabase) {
         for (const target of request.targets) {
           // Test for database configuration change only if query was made in `builder` mode.
-          if (target.editorMode === EditorMode.Builder && target.dataset !== this.preconfiguredDatabase) {
+          if (target.editorMode === EditorMode.Builder && target.catalog !== this.preconfiguredDatabase) {
             return `The configuration for this panel's data source has been modified. The previous database used in this panel's
                    saved query is no longer available. Please update the query to use the new database option.
                    Previous query parameters will be preserved until the query is updated.`;

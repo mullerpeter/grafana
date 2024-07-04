@@ -49,16 +49,25 @@ export enum QueryFormat {
   Timeseries = 'time_series',
   Table = 'table',
 }
+interface QuerySettings {
+  convertLongToWide?: boolean
+  fillMode?: number
+  fillValue?: number
+}
 
 export interface SQLQuery extends DataQuery {
   alias?: string;
   format?: QueryFormat;
   rawSql?: string;
-  dataset?: string;
+  catalog?: string;
+  schema?: string;
   table?: string;
   sql?: SQLExpression;
   editorMode?: EditorMode;
   rawQuery?: boolean;
+  querySettings?: QuerySettings;
+  // Deprecated: kept for backward compatibility
+  rawSqlQuery?: string;
 }
 
 export interface NameValue {
@@ -125,9 +134,11 @@ export interface SQLSelectableValue extends SelectableValue {
 
 export interface DB {
   init?: (datasourceId?: string) => Promise<boolean>;
-  datasets: () => Promise<string[]>;
-  tables: (dataset?: string) => Promise<string[]>;
-  fields: (query: SQLQuery, order?: boolean) => Promise<SQLSelectableValue[]>;
+  catalogs: () => Promise<string[]>;
+  checkIfUnityCatalogEnabled: () => Promise<boolean>;
+  schemas: (catalog?: string) => Promise<string[]>;
+  tables: (catalog?: string, schema?: string) => Promise<string[]>;
+  fields: (catalog?: string, schema?: string, table?: string) => Promise<SQLSelectableValue[]>;
   validateQuery: (query: SQLQuery, range?: TimeRange) => Promise<ValidationResults>;
   dsID: () => number;
   dispose?: (dsID?: string) => void;
