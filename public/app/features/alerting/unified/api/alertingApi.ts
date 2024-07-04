@@ -5,11 +5,26 @@ import { BackendSrvRequest, getBackendSrv } from '@grafana/runtime';
 
 import { logMeasurement } from '../Analytics';
 
-export const backendSrvBaseQuery = (): BaseQueryFn<BackendSrvRequest> => async (requestOptions) => {
+type RequestOptions = Omit<BackendSrvRequest, 'data'> & {
+  /**
+   * Data to send with a request. Maps to `data` property on a `BackendSrvRequest`
+   *
+   * This is done to allow us to more easily consume code-gen APIs that expect a `body` property
+   */
+  body?: BackendSrvRequest['data'];
+};
+
+export const backendSrvBaseQuery = (): BaseQueryFn<RequestOptions> => async (requestOptions) => {
   try {
     const requestStartTs = performance.now();
 
-    const { data, ...meta } = await lastValueFrom(getBackendSrv().fetch(requestOptions));
+    const { body, ...options } = requestOptions;
+    const modifiedOptions: BackendSrvRequest = {
+      ...options,
+      ...(body && { data: body }),
+    };
+
+    const { data, ...meta } = await lastValueFrom(getBackendSrv().fetch(modifiedOptions));
 
     logMeasurement(
       'backendSrvBaseQuery',
